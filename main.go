@@ -121,6 +121,27 @@ func exportMetrics(system cgroups.Cgroup) func(w http.ResponseWriter, r *http.Re
 			fmt.Fprintln(w)
 		}
 
+		fmt.Fprintln(w, `# HELP container_memory_cache Size of Cache in bytes.
+# TYPE container_memory_cache gauge`)
+		for name, stats := range groups {
+			fmt.Fprintf(w, `container_memory_cache{id=%s} %d`, strconv.Quote(name), stats.Memory.Cache)
+			fmt.Fprintln(w)
+		}
+
+		fmt.Fprintln(w, `# HELP container_memory_file_mapped Size of Mapped file in bytes.
+# TYPE container_memory_file_mapped gauge`)
+		for name, stats := range groups {
+			fmt.Fprintf(w, `container_memory_file_mapped{id=%s} %d`, strconv.Quote(name), stats.Memory.MappedFile)
+			fmt.Fprintln(w)
+		}
+
+		fmt.Fprintln(w, `# HELP container_memory_file_dirty Size of Dirty file in bytes.
+# TYPE container_memory_file_dirty gauge`)
+		for name, stats := range groups {
+			fmt.Fprintf(w, `container_memory_file_dirty{id=%s} %d`, strconv.Quote(name), stats.Memory.Dirty)
+			fmt.Fprintln(w)
+		}
+
 		return
 	}
 }

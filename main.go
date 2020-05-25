@@ -23,6 +23,10 @@ var (
 	address = flag.String("address", ":48900", "address")
 )
 
+const (
+	systemSlice = "/system.slice"
+)
+
 func main() {
 	flag.Parse()
 	if *versionFlag {
@@ -33,7 +37,7 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
-	system, err := cgroups.Load(subsystem, cgroups.StaticPath("/system.slice"))
+	system, err := cgroups.Load(subsystem, cgroups.StaticPath(systemSlice))
 	if err != nil {
 		log.Fatalf("cgroups load: %s", err)
 	}
@@ -76,6 +80,13 @@ func subsystem() ([]cgroups.Subsystem, error) {
 	return s, nil
 }
 
+func quoteName(name string) string {
+	name = strings.ReplaceAll(name, "\\x2d", "-")
+	name = strings.TrimPrefix(name, systemSlice)
+	name = strings.TrimPrefix(name, "/")
+	return strconv.Quote(name)
+}
+
 func exportMetrics(system cgroups.Cgroup) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		processes, err := system.Processes(cgroups.Devices, true)
@@ -88,7 +99,6 @@ func exportMetrics(system cgroups.Cgroup) func(w http.ResponseWriter, r *http.Re
 		for _, p := range processes {
 			name := strings.TrimPrefix(p.Path, "/sys/fs/cgroup/devices")
 			name = strings.TrimSuffix(name, "/")
-			name = strings.ReplaceAll(name, "\\x2d", "-")
 			if _, ok := groups[name]; ok {
 				continue
 			}
@@ -111,42 +121,42 @@ func exportMetrics(system cgroups.Cgroup) func(w http.ResponseWriter, r *http.Re
 		fmt.Fprintln(w, `# HELP container_cpu_user_seconds_total Cumulative user cpu time consumed in seconds.`)
 		fmt.Fprintln(w, `# TYPE container_cpu_user_seconds_total counter`)
 		for name, stats := range groups {
-			fmt.Fprintf(w, `container_cpu_user_seconds_total{id=%s} %.2f`, strconv.Quote(name), float64(stats.CPU.Usage.User)/1000000000.0)
+			fmt.Fprintf(w, `container_cpu_user_seconds_total{id=%s} %.2f`, quoteName(name), float64(stats.CPU.Usage.User)/1000000000.0)
 			fmt.Fprintln(w)
 		}
 
 		fmt.Fprintln(w, `# HELP container_memory_usage_bytes Current memory usage in bytes, including all memory regardless of when it was accessed`)
 		fmt.Fprintln(w, `# TYPE container_memory_usage_bytes gauge`)
 		for name, stats := range groups {
-			fmt.Fprintf(w, `container_memory_usage_bytes{id=%s} %d`, strconv.Quote(name), stats.Memory.Usage.Usage)
+			fmt.Fprintf(w, `container_memory_usage_bytes{id=%s} %d`, quoteName(name), stats.Memory.Usage.Usage)
 			fmt.Fprintln(w)
 		}
 
 		fmt.Fprintln(w, `# HELP container_memory_rss Size of RSS in bytes.`)
 		fmt.Fprintln(w, `# TYPE container_memory_rss gauge`)
 		for name, stats := range groups {
-			fmt.Fprintf(w, `container_memory_rss{id=%s} %d`, strconv.Quote(name), stats.Memory.RSS)
+			fmt.Fprintf(w, `container_memory_rss{id=%s} %d`, quoteName(name), stats.Memory.RSS)
 			fmt.Fprintln(w)
 		}
 
 		fmt.Fprintln(w, `# HELP container_memory_cache Size of Cache in bytes.`)
 		fmt.Fprintln(w, `# TYPE container_memory_cache gauge`)
 		for name, stats := range groups {
-			fmt.Fprintf(w, `container_memory_cache{id=%s} %d`, strconv.Quote(name), stats.Memory.Cache)
+			fmt.Fprintf(w, `container_memory_cache{id=%s} %d`, quoteName(name), stats.Memory.Cache)
 			fmt.Fprintln(w)
 		}
 
 		fmt.Fprintln(w, `# HELP container_memory_file_mapped Size of Mapped file in bytes.`)
 		fmt.Fprintln(w, `# TYPE container_memory_file_mapped gauge`)
 		for name, stats := range groups {
-			fmt.Fprintf(w, `container_memory_file_mapped{id=%s} %d`, strconv.Quote(name), stats.Memory.MappedFile)
+			fmt.Fprintf(w, `container_memory_file_mapped{id=%s} %d`, quoteName(name), stats.Memory.MappedFile)
 			fmt.Fprintln(w)
 		}
 
 		fmt.Fprintln(w, `# HELP container_memory_file_dirty Size of Dirty file in bytes.`)
 		fmt.Fprintln(w, `# TYPE container_memory_file_dirty gauge`)
 		for name, stats := range groups {
-			fmt.Fprintf(w, `container_memory_file_dirty{id=%s} %d`, strconv.Quote(name), stats.Memory.Dirty)
+			fmt.Fprintf(w, `container_memory_file_dirty{id=%s} %d`, quoteName(name), stats.Memory.Dirty)
 			fmt.Fprintln(w)
 		}
 

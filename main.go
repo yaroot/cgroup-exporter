@@ -39,6 +39,14 @@ func main() {
 	}
 
 	http.HandleFunc("/metrics", exportMetrics(system))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "HEAD" {
+			w.WriteHeader(200)
+			return
+		}
+		w.Header().Add("Location", "/metrics")
+		w.WriteHeader(302)
+	})
 
 	server := &http.Server{
 		Addr: *address,
